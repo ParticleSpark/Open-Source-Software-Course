@@ -8,13 +8,6 @@ assignees: ""
 
 # Post-Class Reflection
 
-## Session Information
-
-- **Session:** Session XX
-- **Date:** YYYY-MM-DD
-- **Topic:**
-- **Response deadline:** YYYY-MM-DD HH:MM
-
 ## Reflection Questions
 
 <!--
@@ -34,7 +27,7 @@ Your submission should:
 - begin with your 11-digit student ID;
 - address every question using the corresponding question number;
 - demonstrate thoughtful engagement with the concepts discussed in class; and
-- be submitted as one consolidated comment before the stated deadline.
+- be submitted as one consolidated comment.
 
 Use the following format:
 
