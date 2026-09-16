@@ -31,7 +31,6 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const issueNumber = context.issue.number;
-            const issueBody = context.payload.issue.body ?? "";
             const comment = context.payload.comment;
             const commentBody = comment.body.trim();
 
@@ -55,37 +54,6 @@ jobs:
 
             if (!responseMatch || !responseMatch[1].trim()) {
               errors.push("Include a non-empty `**Response:**` section.");
-            }
-
-            // Discover numbered questions from the Issue body.
-            const questionSectionMatch = issueBody.match(
-              /##\s+Reflection Questions[^\r\n]*\r?\n([\s\S]*?)(?=\r?\n##\s+|$)/i
-            );
-            const questionSection = questionSectionMatch?.[1] ?? "";
-            const expectedQuestionNumbers = [
-              ...new Set(
-                [...questionSection.matchAll(/^\s*(\d+)\.\s+\S.*$/gm)]
-                  .map((match) => match[1])
-              ),
-            ];
-
-            // Require a correspondingly numbered answer for every question.
-            if (responseMatch) {
-              const responseText = responseMatch[1];
-
-              for (const questionNumber of expectedQuestionNumbers) {
-                const answerPattern = new RegExp(
-                  `^\\s*${questionNumber}\\.\\s+\\S`,
-                  "m"
-                );
-
-                if (!answerPattern.test(responseText)) {
-                  errors.push(
-                    `Answer Question ${questionNumber} using ` +
-                    `\`${questionNumber}. Your answer\`.`
-                  );
-                }
-              }
             }
 
             // Associate one bot reminder with each student comment.
@@ -137,9 +105,7 @@ jobs:
               "",
               "**Response:**",
               "",
-              "1. Your response to Question 1.",
-              "",
-              "2. Your response to Question 2.",
+              "Your response to the reflection question.",
               "```",
               "",
               "Please edit your original comment. This reminder will be removed automatically after the response passes validation.",
