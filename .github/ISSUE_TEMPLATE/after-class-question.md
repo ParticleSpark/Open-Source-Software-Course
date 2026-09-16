@@ -34,5 +34,5 @@ Use the following format:
 
 **Response:**
 
-Your response to Question 1.
+Your response to Question.
 ```
