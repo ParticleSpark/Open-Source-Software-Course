@@ -1,0 +1,164 @@
+name: Validate Post-Class Responses
+
+on:
+  issue_comment:
+    types:
+      - created
+      - edited
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: validate-post-class-response-${{ github.event.comment.id }}
+  cancel-in-progress: true
+
+jobs:
+  validate-response:
+    name: Validate response format
+    if: >-
+      github.event.issue.pull_request == null &&
+      contains(github.event.issue.labels.*.name, 'post-class-reflection') &&
+      github.event.comment.user.type != 'Bot'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate student response
+        uses: actions/github-script@v9
+        with:
+          retries: 3
+          script: |
+            const { owner, repo } = context.repo;
+            const issueNumber = context.issue.number;
+            const issueBody = context.payload.issue.body ?? "";
+            const comment = context.payload.comment;
+            const commentBody = comment.body.trim();
+
+            // A submission must begin with exactly 11 digits.
+            const studentIdPattern =
+              /^\s*\*\*Student ID:\*\*\s*(\d{11})\s*(?:\r?\n|$)/i;
+
+            // Everything after this heading is treated as the answer section.
+            const responseMatch = commentBody.match(
+              /^\s*\*\*Response:\*\*\s*\r?\n([\s\S]+)$/im
+            );
+
+            const errors = [];
+
+            if (!studentIdPattern.test(commentBody)) {
+              errors.push(
+                "Begin your comment with an 11-digit student ID using " +
+                "`**Student ID:** 20231234567`."
+              );
+            }
+
+            if (!responseMatch || !responseMatch[1].trim()) {
+              errors.push("Include a non-empty `**Response:**` section.");
+            }
+
+            // Discover numbered questions from the Issue body.
+            const questionSectionMatch = issueBody.match(
+              /##\s+Reflection Questions[^\r\n]*\r?\n([\s\S]*?)(?=\r?\n##\s+|$)/i
+            );
+            const questionSection = questionSectionMatch?.[1] ?? "";
+            const expectedQuestionNumbers = [
+              ...new Set(
+                [...questionSection.matchAll(/^\s*(\d+)\.\s+\S.*$/gm)]
+                  .map((match) => match[1])
+              ),
+            ];
+
+            // Require a correspondingly numbered answer for every question.
+            if (responseMatch) {
+              const responseText = responseMatch[1];
+
+              for (const questionNumber of expectedQuestionNumbers) {
+                const answerPattern = new RegExp(
+                  `^\\s*${questionNumber}\\.\\s+\\S`,
+                  "m"
+                );
+
+                if (!answerPattern.test(responseText)) {
+                  errors.push(
+                    `Answer Question ${questionNumber} using ` +
+                    `\`${questionNumber}. Your answer\`.`
+                  );
+                }
+              }
+            }
+
+            // Associate one bot reminder with each student comment.
+            const marker =
+              `<!-- response-format-validator:${comment.id} -->`;
+            const allComments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner,
+                repo,
+                issue_number: issueNumber,
+                per_page: 100,
+              }
+            );
+            const existingReminder = allComments.find(
+              (item) =>
+                item.user?.type === "Bot" && item.body?.includes(marker)
+            );
+
+            if (errors.length === 0) {
+              // Remove the reminder after the original response is corrected.
+              if (existingReminder) {
+                await github.rest.issues.deleteComment({
+                  owner,
+                  repo,
+                  comment_id: existingReminder.id,
+                });
+              }
+
+              core.info(`Comment ${comment.id} passed validation.`);
+              return;
+            }
+
+            const errorList = errors
+              .map((error) => `- ${error}`)
+              .join("\n");
+            const reminderBody = [
+              marker,
+              `@${comment.user.login}, your submission does not follow the required response format.`,
+              "",
+              "Please correct the following:",
+              "",
+              errorList,
+              "",
+              "Use this format:",
+              "",
+              "```markdown",
+              "**Student ID:** 20231234567",
+              "",
+              "**Response:**",
+              "",
+              "1. Your response to Question 1.",
+              "",
+              "2. Your response to Question 2.",
+              "```",
+              "",
+              "Please edit your original comment. This reminder will be removed automatically after the response passes validation.",
+            ].join("\n");
+
+            if (existingReminder) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingReminder.id,
+                body: reminderBody,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body: reminderBody,
+              });
+            }
+
+            core.notice(`Comment ${comment.id} requires correction.`);

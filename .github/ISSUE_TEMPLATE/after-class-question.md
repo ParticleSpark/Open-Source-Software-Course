@@ -31,7 +31,7 @@ Please do **not** open a separate Issue.
 
 Your submission should:
 
-- begin with your full name;
+- begin with your 11-digit student ID;
 - address every question using the corresponding question number;
 - demonstrate thoughtful engagement with the concepts discussed in class; and
 - be submitted as one consolidated comment before the stated deadline.
@@ -39,7 +39,7 @@ Your submission should:
 Use the following format:
 
 ```markdown
-**Name:** Your Full Name
+**Student ID:** 20231234567
 
 **Response:**
 
